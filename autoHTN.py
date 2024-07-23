@@ -31,7 +31,7 @@ def make_method(name, rule):
 def declare_methods(data):
     for name, rule in data['Recipes'].items():
         method = make_method(name, rule)
-        pyhop.declare_methods('produce_' + name.split()[0], method)
+        pyhop.declare_methods('produce_' + name.replace(" ", "_"), method)
 
 def make_operator(rule):
     def operator(state, ID):
@@ -96,10 +96,10 @@ if __name__ == '__main__':
     declare_methods(data)
     add_heuristic(data, 'agent')
 
-    # pyhop.print_operators()
-    # pyhop.print_methods()
+    pyhop.print_operators()
+    pyhop.print_methods()
 
     # Hint: verbose output can take a long time even if the solution is correct; 
     # try verbose=1 if it is taking too long
-    pyhop.pyhop(state, goals, verbose=3)
-    # pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3)
+    #pyhop.pyhop(state, goals, verbose=3)
+    pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3)
