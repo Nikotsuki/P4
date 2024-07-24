@@ -2,12 +2,14 @@ import pyhop
 import json
 
 def check_enough(state, ID, item, num):
-    if getattr(state, item)[ID] >= num: 
+    if getattr(state, item)[ID] >= num:
         return []
     return False
 
 def produce_enough(state, ID, item, num):
-    return [('produce', ID, item), ('have_enough', ID, item, num)]
+    if getattr(state, item)[ID] < num:
+        return [('produce', ID, item), ('have_enough', ID, item, num)]
+    return []
 
 pyhop.declare_methods('have_enough', check_enough, produce_enough)
 
@@ -17,52 +19,57 @@ def produce(state, ID, item):
 pyhop.declare_methods('produce', produce)
 
 def make_method(name, rule):
-    def method(state, ID):
-        # your code here
+    def method(state, ID, produced=set()):
         subtasks = []
         for item, qty in rule.get('Requires', {}).items():
-            subtasks.append(('have_enough', ID, item, qty))
+            if item not in produced:
+                subtasks.append(('have_enough', ID, item, qty))
+                produced.add(item)
         for item, qty in rule.get('Consumes', {}).items():
-            subtasks.append(('have_enough', ID, item, qty))
+            if item not in produced:
+                subtasks.append(('have_enough', ID, item, qty))
+                produced.add(item)
         subtasks.append(('op_' + name.replace(' ', '_'), ID))
         return subtasks
     return method
 
 def declare_methods(data):
+    methods = {}
     for name, rule in data['Recipes'].items():
         method = make_method(name, rule)
-        for name2, number in rule.get('Produces').items():
-            pyhop.declare_methods('produce_' + name2, method)
+        for produced_item in rule['Produces'].keys():
+            if 'produce_' + produced_item not in methods:
+                methods['produce_' + produced_item] = []
+            methods['produce_' + produced_item].append(method)
+    for produced_item, method_list in methods.items():
+        pyhop.declare_methods(produced_item, *method_list)
 
-def make_operator(rule):
+def make_operator(name, rule):
     def operator(state, ID):
-        if all(state.get(res, {}).get(ID, 0) >= qty for res, qty in rule.get('Requires', {}).items()) and \
+        if all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Requires', {}).items()) and \
         state.time[ID] >= rule['Time']:
-            for res, qty in rule.get('Consumes', {}).items():
-                state[res][ID] -= qty
-            for res, qty in rule['Produces'].items():
-                state[res][ID] += qty
+            for item, qty in rule.get('Consumes', {}).items():
+                getattr(state, item)[ID] -= qty
+            for item, qty in rule.get('Produces', {}).items():
+                getattr(state, item)[ID] += qty
             state.time[ID] -= rule['Time']
             return state
         return False
+    operator.__name__ = 'op_' + name.replace(' ', '_')
     return operator
 
 def declare_operators(data):
-    # your code here
     operators = []
     for name, rule in data['Recipes'].items():
-        operator = make_operator(rule)
-        operator.__name__ = 'op_' + name.replace(' ', '_')
+        operator = make_operator(name, rule)
         operators.append(operator)
     pyhop.declare_operators(*operators)
-
 def add_heuristic(data, ID):
     def heuristic(state, curr_task, tasks, plan, depth, calling_stack):
         # Implement your heuristic here
         return False
 
     pyhop.add_check(heuristic)
-
 def set_up_state(data, ID, time=0):
     state = pyhop.State('state')
     state.time = {ID: time}
@@ -90,17 +97,26 @@ if __name__ == '__main__':
     with open(rules_filename) as f:
         data = json.load(f)
 
-    state = set_up_state(data, 'agent', time=239) # allot time here
+    state = set_up_state(data, 'agent', time=250)  # set the initial time
     goals = set_up_goals(data, 'agent')
 
     declare_operators(data)
     declare_methods(data)
-    #add_heuristic(data, 'agent')
 
     pyhop.print_operators()
     pyhop.print_methods()
 
-    # Hint: verbose output can take a long time even if the solution is correct; 
-    # try verbose=1 if it is taking too long
-    pyhop.pyhop(state, goals, verbose=2)
-    #pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3)
+    #state.plank = {'agent': 3}
+    #state.stick = {'agent': 2}
+
+    #Test cases
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 1 w/ 0 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 2 w/ 300 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1), ('have_enough', 'agent', 'rail', 1)], verbose=3) # 5 w/ 175 time // CLEAR
+    result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3)
+
+
+    #result = pyhop.pyhop(state, goals, verbose=3)
+    print("Result:", result)
