@@ -46,8 +46,9 @@ def declare_methods(data):
 
 def make_operator(name, rule):
     def operator(state, ID):
-        if all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Requires', {}).items()) and \
-        state.time[ID] >= rule['Time']:
+        if all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Requires', {}).items()) and\
+            all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Consumes', {}).items()) and\
+            state.time[ID] >= rule['Time']:
             for item, qty in rule.get('Consumes', {}).items():
                 getattr(state, item)[ID] -= qty
             for item, qty in rule.get('Produces', {}).items():
@@ -67,6 +68,7 @@ def declare_operators(data):
 
 def add_heuristic(data, ID):
     def heuristic(state, curr_task, tasks, plan, depth, calling_stack):
+        i = 0
         print(curr_task)
         try:
             task1 = (tasks[1])
@@ -87,6 +89,19 @@ def add_heuristic(data, ID):
                 tasks.remove(tasks[1])
             if state.furnace[ID] >= 1 and task1 == ('op_craft_furnace', 'agent'):
                 tasks.remove(tasks[1])
+            for task in tasks:
+                if task == ('have_enough', 'agent', 'wood', 1):
+                    if task != tasks[0]:
+                        if state.bench[ID] == 0:
+                            if tasks[i - 1] != ('op_punch_for_wood', 'agent'):
+                                tasks.remove(tasks[i - 2])
+                            tasks[i - 1] = ('op_punch_for_wood', 'agent')
+                        elif state.wooden_axe == 0 and state.stone_axe == 0 and task1 and state.iron_axe == 0:
+                            if tasks[i - 1] != ('op_punch_for_wood', 'agent'):
+                                tasks.remove(tasks[i - 2])
+                            tasks[i - 1] = ('op_punch_for_wood', 'agent')
+                else:
+                    i += 1
         except IndexError:
             #print(plan)
             #print(calling_stack)
@@ -120,7 +135,7 @@ if __name__ == '__main__':
     with open(rules_filename) as f:
         data = json.load(f)
 
-    state = set_up_state(data, 'agent', time=250)  # set the initial time
+    state = set_up_state(data, 'agent', time=100)  # set the initial time
     goals = set_up_goals(data, 'agent')
 
     declare_operators(data)
