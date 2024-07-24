@@ -64,12 +64,35 @@ def declare_operators(data):
         operator = make_operator(name, rule)
         operators.append(operator)
     pyhop.declare_operators(*operators)
+
 def add_heuristic(data, ID):
     def heuristic(state, curr_task, tasks, plan, depth, calling_stack):
-        # Implement your heuristic here
-        return False
-
+        print(curr_task)
+        try:
+            task1 = (tasks[1])
+            print(task1)
+            if state.wooden_pickaxe[ID] >= 1 and task1 == ('op_craft_wooden_pickaxe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.stone_pickaxe[ID] >= 1 and task1 == ('op_craft_stone_pickaxe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.iron_pickaxe[ID] >= 1 and task1 == ('op_craft_iron_pickaxe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.wooden_axe[ID] >= 1 and task1 == ('op_craft_wooden_axe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.stone_axe[ID] >= 1 and task1 == ('op_craft_stone_axe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.iron_axe[ID] >= 1 and task1 == ('op_craft_iron_axe_at_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.bench[ID] >= 1 and task1 == ('op_craft_bench', 'agent'):
+                tasks.remove(tasks[1])
+            if state.furnace[ID] >= 1 and task1 == ('op_craft_furnace', 'agent'):
+                tasks.remove(tasks[1])
+        except IndexError:
+            #print(plan)
+            #print(calling_stack)
+            return
     pyhop.add_check(heuristic)
+
 def set_up_state(data, ID, time=0):
     state = pyhop.State('state')
     state.time = {ID: time}
@@ -105,6 +128,7 @@ if __name__ == '__main__':
 
     pyhop.print_operators()
     pyhop.print_methods()
+    add_heuristic(data, 'agent')
 
     #state.plank = {'agent': 3}
     #state.stick = {'agent': 2}
@@ -113,9 +137,9 @@ if __name__ == '__main__':
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 1 w/ 0 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 2 w/ 300 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
-    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
+    result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1), ('have_enough', 'agent', 'rail', 1)], verbose=3) # 5 w/ 175 time // CLEAR
-    result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3)
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3) # 6 w/ 250 time // CLEAR
 
 
     #result = pyhop.pyhop(state, goals, verbose=3)
