@@ -34,8 +34,9 @@ def make_method(name, rule):
                 subtasks.append(('have_enough', ID, item, qty))
                 produced.add(item)
         subtasks.append(('op_' + name.replace(' ', '_'), ID))
-        print("THIS IS SUBTASKS")
-        print(subtasks)
+        #print("THIS IS SUBTASKS")
+        #print(subtasks)
+        return subtasks
     method.__name__ = name.replace(' ', '_')
     return method
 
@@ -220,7 +221,7 @@ def add_heuristic(data, ID):
     def heuristic(state, curr_task, tasks, plan, depth, calling_stack):
         #print("HI")
         #print(curr_task)
-        #print("hi")
+        print("hi")
         print(calling_stack)
         '''if len(tasks) > 1:
             task1 = tasks[1]
@@ -309,8 +310,8 @@ if __name__ == '__main__':
     #Test cases
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 1 w/ 0 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 2 w/ 300 time // CLEAR
-    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
-    result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
+    result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1), ('have_enough', 'agent', 'rail', 1)], verbose=3) # 5 w/ 175 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3) # 6 w/ 250 time // CLEAR
 
