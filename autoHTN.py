@@ -23,22 +23,38 @@ def findTime(recipe):
 
 def make_method(name, rule):
     def method(state, ID):
-        subtasks = []
-        produced = set()
-        for item, qty in rule.get('Requires', {}).items():
-            if item not in produced:
-                subtasks.append(('have_enough', ID, item, qty))
-                produced.add(item)
-        for item, qty in rule.get('Consumes', {}).items():
-            if item not in produced:
-                subtasks.append(('have_enough', ID, item, qty))
-                produced.add(item)
-        subtasks.append(('op_' + name.replace(' ', '_'), ID))
-        #print("THIS IS SUBTASKS")
-        #print(subtasks)
-        return subtasks
-    method.__name__ = name.replace(' ', '_')
+        required_tasks = []
+        viable_recipe = None
+
+        for recipe_name, recipe in rule:
+            can_produce = True
+            missing_items = []
+
+            for item, qty in recipe.get("Consumes", {}).items():
+                if getattr(state, item)[ID] < qty:
+                    can_produce = False
+                    missing_items.append(('have_enough', ID, item, qty))
+
+            for item, qty in recipe.get("Requires", {}).items():
+                if getattr(state, item)[ID] < qty:
+                    can_produce = False
+                    missing_items.append(('have_enough', ID, item, qty))
+
+            if can_produce:
+                viable_recipe = ("op_" + recipe_name.replace(" ", "_"), ID)
+                break
+            else:
+                required_tasks.extend(missing_items)
+
+        # If a viable recipe is found, use it; otherwise, return tasks to fulfill requirements
+        if viable_recipe:
+            return [viable_recipe]
+        else:
+            return required_tasks
+
+    method.__name__ = name
     return method
+
 
 
 '''def make_method (name, rule):
@@ -66,7 +82,7 @@ def make_method(name, rule):
 
     return method'''
 
-def declare_methods(data):
+'''def declare_methods(data):
 
     recipe_list = []
     for recipe, rule in data['Recipes'].items():
@@ -82,61 +98,46 @@ def declare_methods(data):
                 methods['produce_' + produced_item] = []
             methods['produce_' + produced_item].append(method)
     for produced_item, method_list in methods.items():       
-        pyhop.declare_methods(produced_item, *method_list)
+        pyhop.declare_methods(produced_item, *method_list)'''
 
-'''def declare_methods (data):
-    # some recipes are faster than others for the same product even though they might require extra tools
-    # sort the recipes so that faster recipes go first
+def declare_methods (data):
+    methods_map = {}
 
-    # your code here
-    # hint: call make_method, then declare the method to pyhop using pyhop.declare_methods('foo', m1, m2, ..., mk)    
-    
-    for item in data['Recipes'].keys():
-        produces = list(data['Recipes'][item]['Produces'].keys())[0]
-        time = data['Recipes'][item]['Time']
-        items = [(time, item)]
-        
-        for item2 in data['Recipes'].keys():
-            produces2 = list(data['Recipes'][item2]['Produces'].keys())[0]
-            if produces2 == produces and item != item2:
-                time2 = data['Recipes'][item2]['Time']
-                items.append((time2, item2))
-        
-        items = sorted(items)
-        
-        methods = []
-        for recipe in items:
-            requires = {}
-            if 'Requires' in data['Recipes'][recipe[1]]:
-                requires = data['Recipes'][recipe[1]]['Requires']
-            consumes = {}
-            if 'Consumes' in data['Recipes'][recipe[1]]:
-                consumes = data['Recipes'][recipe[1]]['Consumes']
-            name = 'op_'+recipe[1]
-            m = make_method(name, [requires, consumes])
-            m.__name__ = recipe[1]
-            methods.append(m)
-        
-        name = 'produce_'+produces
-        newList = [name] + methods
-        
-        pyhop.declare_methods(*newList)
-        
-    return         '''
+    for recipe_name, recipe_details in data['Recipes'].items():
+        produced_item = next(iter(recipe_details['Produces'].keys()))
+        method_name = "produce_" + produced_item
+
+        if method_name not in methods_map:
+            methods_map[method_name] = []
+
+        relevant_recipes = [(name, details) for name, details in data['Recipes'].items() if produced_item in details['Produces']]
+        method = make_method(method_name, relevant_recipes)
+        methods_map[method_name].append(method)
+
+    for method_name, methods in methods_map.items():
+        pyhop.declare_methods(method_name, *methods)
 
 def make_operator(name, rule):
     def operator(state, ID):
-        if all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Requires', {}).items()) and\
-            all(getattr(state, item)[ID] >= qty for item, qty in rule.get('Consumes', {}).items()) and\
-            state.time[ID] >= rule['Time']:
-            for item, qty in rule.get('Consumes', {}).items():
-                getattr(state, item)[ID] -= qty
-            for item, qty in rule.get('Produces', {}).items():
-                getattr(state, item)[ID] += qty
-            state.time[ID] -= rule['Time']
-            return state
-        return False
-    operator.__name__ = 'op_' + name.replace(' ', '_')
+        for item, qty in rule.get('Consumes', {}).items():
+            if getattr(state, item)[ID] < qty:
+                return False
+
+        for item, qty in rule.get('Requires', {}).items():
+            if getattr(state, item)[ID] < qty:
+                return False
+
+        for item, qty in rule.get('Consumes', {}).items():
+            setattr(state, item, {ID: getattr(state, item)[ID] - qty})
+
+        for item, qty in rule.get('Produces', {}).items():
+            setattr(state, item, {ID: getattr(state, item)[ID] + qty})
+
+        state.time[ID] -= rule['Time']
+
+        return state
+
+    operator.__name__ = "op_" + name.replace(" ", "_")
     return operator
 
 '''def make_operator (rule):
@@ -183,11 +184,9 @@ def make_operator(name, rule):
     return operator'''
 
 def declare_operators(data):
-    operators = []
-    for name, rule in data['Recipes'].items():
-        operator = make_operator(name, rule)
-        operators.append(operator)
-    pyhop.declare_operators(*operators)
+    for recipe_name, recipe_details in data['Recipes'].items():
+        operator = make_operator(recipe_name, recipe_details)
+        pyhop.declare_operators(operator)
 
 
 '''def declare_operators (data):
@@ -219,13 +218,11 @@ def declare_operators(data):
 
 def add_heuristic(data, ID):
     def heuristic(state, curr_task, tasks, plan, depth, calling_stack):
-        #print("HI")
-        #print(curr_task)
-        print("hi")
-        print(calling_stack)
-        '''if len(tasks) > 1:
-            task1 = tasks[1]
-            #print(task1)
+        i = 0
+        print(curr_task)
+        try:
+            task1 = (tasks[1])
+            print(task1)
             if state.wooden_pickaxe[ID] >= 1 and task1 == ('op_craft_wooden_pickaxe_at_bench', 'agent'):
                 tasks.remove(tasks[1])
             if state.stone_pickaxe[ID] >= 1 and task1 == ('op_craft_stone_pickaxe_at_bench', 'agent'):
@@ -241,30 +238,22 @@ def add_heuristic(data, ID):
             if state.bench[ID] >= 1 and task1 == ('op_craft_bench', 'agent'):
                 tasks.remove(tasks[1])
             if state.furnace[ID] >= 1 and task1 == ('op_craft_furnace', 'agent'):
-                tasks.remove(tasks[1])'''
-    
-        if curr_task[0] == 'produce' and curr_task[2] in data['Tools'] and curr_task in calling_stack:
-            return True
-    
-        # These check to see if the tool that we are considering making will be used enough to actually be a benefit.
-        # Doesn't work how I would want it to, but it is able to pass all of the tests.
-        if curr_task[0] == 'produce' and curr_task[2] == 'iron_pickaxe':
-            required = 0
+                tasks.remove(tasks[1])
             for task in tasks:
-                if task[0] == 'have_enough' and task[2] == 'ingot':
-                        required += task[3]
-            #print(required)
-            if required <= 11 and required > 0:
-                return True
-
-        if curr_task[0] == 'produce' and curr_task[2] == 'wooden_axe':
-            required = 0
-            for task in tasks:
-                if task[0] == 'have_enough' and task[2] == 'wood':
-                        required += task[3]
-            if required <= 9 and required > 0:
-                return True
-        return False
+                if task == ('have_enough', 'agent', 'wood', 1):
+                    if task != tasks[0]:
+                        if state.bench[ID] == 0:
+                            if tasks[i - 1] != ('op_punch_for_wood', 'agent'):
+                                tasks.remove(tasks[i - 2])
+                            tasks[i - 1] = ('op_punch_for_wood', 'agent')
+                        elif state.wooden_axe == 0 and state.stone_axe == 0 and task1 and state.iron_axe == 0:
+                            if tasks[i - 1] != ('op_punch_for_wood', 'agent'):
+                                tasks.remove(tasks[i - 2])
+                            tasks[i - 1] = ('op_punch_for_wood', 'agent')
+                else:
+                    i += 1
+        except IndexError:
+            return
     pyhop.add_check(heuristic)
 
 def set_up_state(data, ID, time=0):
@@ -294,7 +283,7 @@ if __name__ == '__main__':
     with open(rules_filename) as f:
         data = json.load(f)
 
-    state = set_up_state(data, 'agent', time=10)  # set the initial time
+    state = set_up_state(data, 'agent', time=100000)  # set the initial time
     goals = set_up_goals(data, 'agent')
 
     declare_operators(data)
@@ -304,17 +293,17 @@ if __name__ == '__main__':
     pyhop.print_operators()
     pyhop.print_methods()
 
-    #state.plank = {'agent': 3}
+    #state.plank = {'agent': 1}
     #state.stick = {'agent': 2}
 
     #Test cases
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 1 w/ 0 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'plank', 1)], verbose=3) # 2 w/ 300 time // CLEAR
-    result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
+    #result = pyhop.pyhop(state, [('have_enough', 'agent', 'wooden_pickaxe', 1)], verbose=3) # 3 w/ 10 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1), ('have_enough', 'agent', 'rail', 1)], verbose=3) # 5 w/ 175 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3) # 6 w/ 250 time // CLEAR
-
+    result = pyhop.pyhop(state), [()]
 
     #result = pyhop.pyhop(state, goals, verbose=3)
     print("Result:", result)
