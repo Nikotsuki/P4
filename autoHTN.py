@@ -1,5 +1,6 @@
 import pyhop
 import json
+import sys
 
 def check_enough(state, ID, item, num):
     if getattr(state, item)[ID] >= num:
@@ -239,7 +240,7 @@ def add_heuristic(data, ID):
                 tasks.remove(tasks[1])
             if state.furnace[ID] >= 1 and task1 == ('op_craft_furnace', 'agent'):
                 tasks.remove(tasks[1])
-            for task in tasks:
+            '''for task in tasks:
                 if task == ('have_enough', 'agent', 'wood', 1):
                     if task != tasks[0]:
                         if state.bench[ID] == 0:
@@ -251,7 +252,7 @@ def add_heuristic(data, ID):
                                 tasks.remove(tasks[i - 2])
                             tasks[i - 1] = ('op_punch_for_wood', 'agent')
                 else:
-                    i += 1
+                    i += 1'''
         except IndexError:
             return
     pyhop.add_check(heuristic)
@@ -293,6 +294,8 @@ if __name__ == '__main__':
     pyhop.print_operators()
     pyhop.print_methods()
 
+    sys.setrecursionlimit(20000)
+
     #state.plank = {'agent': 1}
     #state.stick = {'agent': 2}
 
@@ -303,7 +306,7 @@ if __name__ == '__main__':
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'iron_pickaxe', 1)], verbose=3) # 3 w/ 100 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1), ('have_enough', 'agent', 'rail', 1)], verbose=3) # 5 w/ 175 time // CLEAR
     #result = pyhop.pyhop(state, [('have_enough', 'agent', 'cart', 1),('have_enough', 'agent', 'rail', 20)], verbose=3) # 6 w/ 250 time // CLEAR
-    result = pyhop.pyhop(state), [()]
+    result = pyhop.pyhop(state, [('have_enough', 'agent', 'rail', 1000), ('have_enough', 'agent', 'ingot', 500), ('have_enough', 'agent', 'coal', 500), ('have_enough', 'agent', 'stick', 100)], verbose=3)
 
     #result = pyhop.pyhop(state, goals, verbose=3)
     print("Result:", result)
